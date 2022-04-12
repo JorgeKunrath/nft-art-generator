@@ -20,7 +20,7 @@ const template = `
     </svg>
 `
 
-const takenFaces = {}
+const takenFaces = []
 let idx = 10
 
 const randInt = (max) => Math.floor(Math.random() * (max + 1))
@@ -43,37 +43,54 @@ async function svgToPng(name) {
   await resized.toFile(dest)
 }
 
+// FIXME: this logic might be wrong
+const alreadyExists =
+  (test, threshold = 2) =>
+  (base) => {
+    const baseArr = base.match(/.{2}/g)
+    const testArr = test.match(/.{2}/g)
+    const equals = baseArr.filter((val, idx) => val === testArr[idx])
+    const result = equals.length <= threshold
+    return !result
+  }
+
 async function createImage(idx) {
   // TODO: insert rarity
   // TODO: check for layers exclusions
-  const bg = randInt(5)
-  const hair = randInt(7)
-  const eyes = randInt(9)
-  const nose = randInt(4)
-  const mouth = randInt(5)
-  const beard = randInt(3)
+  const traitId = {
+    bg: `${randInt(5)}`.padStart(2, '0'),
+    head: `${randInt(0)}`.padStart(2, '0'),
+    hair: `${randInt(7)}`.padStart(2, '0'),
+    eyes: `${randInt(9)}`.padStart(2, '0'),
+    nose: `${randInt(4)}`.padStart(2, '0'),
+    mouth: `${randInt(5)}`.padStart(2, '0'),
+    beard: `${randInt(3)}`.padStart(2, '0'),
+  }
 
-  // FIXME: verify if it works when randInts are bigger than 9
-  const face = [hair, eyes, mouth, nose, beard].join('')
+  const face = [traitId.hair, traitId.eyes, traitId.mouth, traitId.nose, traitId.beard]
+    .map((val) => `${val}`.padStart(2, '0'))
+    .join('')
 
-  if (face[takenFaces]) {
-    createImage()
+  if (takenFaces.some(alreadyExists(face))) {
+    createImage(idx)
   } else {
-    face[takenFaces] = face
+    takenFaces.push(face)
 
     const final = template
-      .replace('<!-- bg -->', getLayer(`bg${bg}`))
-      .replace('<!-- head -->', getLayer('head0'))
-      .replace('<!-- hair -->', getLayer(`hair${hair}`))
-      .replace('<!-- eyes -->', getLayer(`eyes${eyes}`))
-      .replace('<!-- nose -->', getLayer(`nose${nose}`))
-      .replace('<!-- mouth -->', getLayer(`mouth${mouth}`))
-      .replace('<!-- beard -->', getLayer(`beard${beard}`, 0.5))
+      .replace('<!-- bg -->', getLayer(`bg${traitId.bg}`))
+      .replace('<!-- head -->', getLayer(`head${traitId.head}`))
+      .replace('<!-- hair -->', getLayer(`hair${traitId.hair}`))
+      .replace('<!-- eyes -->', getLayer(`eyes${traitId.eyes}`))
+      .replace('<!-- nose -->', getLayer(`nose${traitId.nose}`))
+      .replace('<!-- mouth -->', getLayer(`mouth${traitId.mouth}`))
+      .replace('<!-- beard -->', getLayer(`beard${traitId.beard}`, 0.5))
 
     const meta = {
       name: `${idx}`,
       description: '',
       image: `${idx}.png`,
+      faceHash: face,
+      face: traitId,
       attributes: [
         {
           beard: '',
@@ -103,6 +120,7 @@ async function run() {
     await createImage(idx)
     idx--
   }
+  console.log('takenFaces', takenFaces)
 }
 
 run()
